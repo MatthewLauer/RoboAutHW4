@@ -92,7 +92,17 @@ class SimpleEnvironment(object):
         wc = [0., 0., 0.]
         grid_coordinate = self.discrete_env.ConfigurationToGridCoord(wc)
 
+        left_wheel = 1
+        right_wheel = 1
+        duration = 1.57 #I think this makes 90 degree turns
+
+        forward = Control(left_wheel, right_wheel, duration)
+        turnright = Control(-left_wheel, right_wheel, duration)
+        turnleft = Control(left_wheel, -right_wheel, duration)
         # Iterate through each possible starting orientation
+        #I don't know why we iterate, but okay
+
+
         for idx in range(int(self.discrete_env.num_cells[2])):
             self.actions[idx] = []
             grid_coordinate[2] = idx
@@ -101,8 +111,15 @@ class SimpleEnvironment(object):
             # TODO: Here you will construct a set of actions
             #  to be used during the planning process
             #
+            forward_print = self.GenerateFootprintFromControl(start_config, forward, 0.01)
+            turnright_print = self.GenerateFootprintFromControl(start_config, turnright, 0.01)
+            turnleft_print = self.GenerateFootprintFromControl(start_config, turnleft, 0.01)
          
-            
+            forward_action = Action(forward, numpy.array(forward_print))
+            turnright_action = Action(turnright, numpy.array(turnright_print))
+            turnleft_action = Action(turnleft, numpy.array(turnleft_print))
+
+            self.actions[idx] = [Ac_forward,Ac_backward,Ac_rightturn,Ac_leftturn]
 
     def GetSuccessors(self, node_id):
 
@@ -113,6 +130,21 @@ class SimpleEnvironment(object):
         #  and return a list of node_ids and controls that represent the neighboring
         #  nodes
         
+        start_config = self.discrete_env.NodeIdToConfiguration(node_id)
+        coord = numpy.array(self.discrete_env.NodeIdToGridCoord(node_id))
+        myactions = self.actions[coord[2]] #because someone chose to iterate through angles for no reason
+
+        for i in range(len(actions)):
+            fp = myactions[i].footprint
+            suc_config = numpy.array(start_config).copy()
+            suc_config[2] = 0 #more bullshit due to iterating through angles
+            suc_config = suc_config + foot_print[-1] #add the movement from the action
+
+            suc_id = self.discrete_env.ConfigurationToNodeId(suc_config)
+
+            if (self.robot.GetEnv().CheckCollision(self.robot) == False):
+                successors.append([suc_id, myactions[i]])
+
         return successors
 
     def ComputeDistance(self, start_id, end_id):
@@ -122,17 +154,30 @@ class SimpleEnvironment(object):
         # TODO: Here you will implement a function that 
         # computes the distance between the configurations given
         # by the two node ids
+        start_config = numpy.array(self.discrete_env.NodeIdToConfiguration(start_id))
+        goal_config = numpy.array(self.discrete_env.NodeIdToConfiguration(end_id))
+        
 
+        dist = dist = numpy.linalg.norm(goal_config - start_config)
         return dist
 
     def ComputeHeuristicCost(self, start_id, goal_id):
         
         cost = 0
+        
 
+        start_config = numpy.array(self.discrete_env.NodeIdToConfiguration(start_id))
+        goal_config = numpy.array(self.discrete_env.NodeIdToConfiguration(end_id))
+
+        
+        #we ignore angle here on purpose
+        #Since we non-holonomic angle will tend to mess us up more
+        #Or maybe not, but I'm going with my gut here        
+        cost = 10*abs(start_config[0] - goal_config[0]) + abs(start_config[1] - goal_config[1])
+        #Also weighting this bad boy
         # TODO: Here you will implement a function that 
         # computes the heuristic cost between the configurations
         # given by the two node ids
-        
         
         return cost
 
