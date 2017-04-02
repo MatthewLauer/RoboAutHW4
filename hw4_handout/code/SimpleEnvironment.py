@@ -19,8 +19,8 @@ class SimpleEnvironment(object):
         self.herb = herb
         self.robot = herb.robot
         self.boundary_limits = [[-5., -5., -numpy.pi], [5., 5., numpy.pi]]
-        lower_limits, upper_limits = self.boundary_limits
-        self.discrete_env = DiscreteEnvironment(resolution, lower_limits, upper_limits)
+        self.lower_limits, self.upper_limits = self.boundary_limits
+        self.discrete_env = DiscreteEnvironment(resolution, self.lower_limits, self.upper_limits)
 
         self.resolution = resolution
         self.ConstructActions()
@@ -31,6 +31,7 @@ class SimpleEnvironment(object):
         ul = control.ul
         ur = control.ur
         dt = control.dt
+        start_config = numpy.array(start_config)
 
         # Initialize the footprint
         config = start_config.copy()
@@ -50,6 +51,9 @@ class SimpleEnvironment(object):
                 config[2] -= 2.*numpy.pi
             if config[2] < -numpy.pi:
                 config[2] += 2.*numpy.pi
+            if(ul!=ur):# and timecount%30 == 0):
+                import IPython
+                #IPython.embed()
 
             footprint_config = config.copy()
             footprint_config[:2] -= start_config[:2]
@@ -94,11 +98,12 @@ class SimpleEnvironment(object):
 
         left_wheel = 1
         right_wheel = 1
-        duration = 1.57 #I think this makes 90 degree turns
+        duration_turn = numpy.pi/2 #I think this makes 90 degree turns
+        duration_move = .5 #not sure how far this moves
 
-        forward = Control(left_wheel, right_wheel, duration)
-        turnright = Control(-left_wheel, right_wheel, duration)
-        turnleft = Control(left_wheel, -right_wheel, duration)
+        forward = Control(left_wheel, right_wheel, duration_move)
+        turnright = Control(-left_wheel, right_wheel, duration_turn)
+        turnleft = Control(left_wheel, -right_wheel, duration_turn)
         # Iterate through each possible starting orientation
         #I don't know why we iterate, but okay
 
@@ -119,7 +124,18 @@ class SimpleEnvironment(object):
             turnright_action = Action(turnright, numpy.array(turnright_print))
             turnleft_action = Action(turnleft, numpy.array(turnleft_print))
 
-            self.actions[idx] = [Ac_forward,Ac_backward,Ac_rightturn,Ac_leftturn]
+            self.actions[idx] = [forward_action,turnright_action,turnleft_action]
+
+    def CheckCollision(self, conf):
+        transform = self.robot.GetTransform()
+        transform[0, 3] = conf[0]
+        transform[1, 3] = conf[1]
+        self.robot.SetTransform(transform);
+
+        for body in self.robot.GetEnv().GetBodies():
+            if (body.GetName() != self.robot.GetName() and self.robot.GetEnv().CheckCollision(body, self.robot)):
+                return False
+        return True 
 
     def GetSuccessors(self, node_id):
 
@@ -132,18 +148,23 @@ class SimpleEnvironment(object):
         
         start_config = self.discrete_env.NodeIdToConfiguration(node_id)
         coord = numpy.array(self.discrete_env.NodeIdToGridCoord(node_id))
+        
+        for i in range(len(coord)-1):
+            if(coord[i] >= self.discrete_env.num_cells[i]-1 or coord[i] <= 0):
+                return successors
+
         myactions = self.actions[coord[2]] #because someone chose to iterate through angles for no reason
 
-        for i in range(len(actions)):
+        for i in range(len(myactions)):
             fp = myactions[i].footprint
             suc_config = numpy.array(start_config).copy()
             suc_config[2] = 0 #more bullshit due to iterating through angles
-            suc_config = suc_config + foot_print[-1] #add the movement from the action
+            suc_config = suc_config + fp[-1] #add the movement from the action
 
             suc_id = self.discrete_env.ConfigurationToNodeId(suc_config)
-
-            if (self.robot.GetEnv().CheckCollision(self.robot) == False):
+            if (self.CheckCollision(suc_config)):
                 successors.append([suc_id, myactions[i]])
+            #    successors.append([suc_id, myactions[i]])
 
         return successors
 
@@ -167,13 +188,13 @@ class SimpleEnvironment(object):
         
 
         start_config = numpy.array(self.discrete_env.NodeIdToConfiguration(start_id))
-        goal_config = numpy.array(self.discrete_env.NodeIdToConfiguration(end_id))
+        goal_config = numpy.array(self.discrete_env.NodeIdToConfiguration(goal_id))
 
         
         #we ignore angle here on purpose
         #Since we non-holonomic angle will tend to mess us up more
         #Or maybe not, but I'm going with my gut here        
-        cost = 10*abs(start_config[0] - goal_config[0]) + abs(start_config[1] - goal_config[1])
+        cost = 10*(abs(start_config[0] - goal_config[0]) + abs(start_config[1] - goal_config[1]))
         #Also weighting this bad boy
         # TODO: Here you will implement a function that 
         # computes the heuristic cost between the configurations
@@ -181,3 +202,39 @@ class SimpleEnvironment(object):
         
         return cost
 
+    def InitializePlot(self, goal_config):
+        self.fig = pl.figure()
+        pl.xlim([self.lower_limits[0], self.upper_limits[0]])
+        pl.ylim([self.lower_limits[1], self.upper_limits[1]])
+        pl.plot(goal_config[0], goal_config[1], 'gx')
+
+        # Show all obstacles in environment
+        for b in self.robot.GetEnv().GetBodies():
+            if b.GetName() == self.robot.GetName():
+                continue
+            bb = b.ComputeAABB()
+            pl.plot([bb.pos()[0] - bb.extents()[0],
+                     bb.pos()[0] + bb.extents()[0],
+                     bb.pos()[0] + bb.extents()[0],
+                     bb.pos()[0] - bb.extents()[0],
+                     bb.pos()[0] - bb.extents()[0]],
+                    [bb.pos()[1] - bb.extents()[1],
+                     bb.pos()[1] - bb.extents()[1],
+                     bb.pos()[1] + bb.extents()[1],
+                     bb.pos()[1] + bb.extents()[1],
+                     bb.pos()[1] - bb.extents()[1]], 'r')
+                    
+                     
+        pl.ion()
+        pl.show()
+        
+    def PlotEdge(self, sconfig, econfig):
+        pl.plot([sconfig[0], econfig[0]],
+                [sconfig[1], econfig[1]],
+                'k.-', linewidth=2.5)
+        pl.draw()
+    def PlotPlan(self, sconfig, econfig):
+        pl.plot([sconfig[0], econfig[0]],
+                [sconfig[1], econfig[1]],
+                'r.-', linewidth=2.5)
+        pl.draw()
