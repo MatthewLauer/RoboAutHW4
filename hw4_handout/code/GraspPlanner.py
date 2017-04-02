@@ -96,12 +96,10 @@ class GraspPlanner(object):
                 for pose in poses:
                     self.robot.SetTransform(pose)
                     self.robot.SetDOFValues(*jointstate)
-                    # validate that base is not in collision
+                    # Check if base is in collision
                     if not self.manip.CheckIndependentCollision(openravepy.CollisionReport()):
                         q = self.manip.FindIKSolution(Tgrasp, filteroptions=openravepy.IkFilterOptions.CheckEnvCollisions)
                         if q is not None:
-                            # values = self.robot.GetDOFValues()
-                            # values[self.manip.GetArmIndices()] = q
                             pose = self.robot.GetTransform()
                             xy_pose = [pose[0][3], pose[1][3]]
                             goals.append((Tgrasp, xy_pose,q, pose))
@@ -132,7 +130,7 @@ class GraspPlanner(object):
         for grasp in grasps_ordered:
             grasp[gmodel.graspindices.get('performance')] = self.eval_grasp(grasp)
 
-            # sort!
+        # sort!
         order = numpy.argsort(gmodel.grasps_ordered[:, gmodel.graspindices.get('performance')[0]])
         # maximum of sigma_min
         order = order[::-1]
