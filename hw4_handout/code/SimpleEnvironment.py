@@ -99,7 +99,7 @@ class SimpleEnvironment(object):
         left_wheel = 1
         right_wheel = 1
         duration_turn = numpy.pi/2 #I think this makes 90 degree turns
-        duration_move = .5 #not sure how far this moves
+        duration_move = .4 #not sure how far this moves
 
         forward = Control(left_wheel, right_wheel, duration_move)
         turnright = Control(-left_wheel, right_wheel, duration_turn)

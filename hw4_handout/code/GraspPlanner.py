@@ -24,8 +24,7 @@ class GraspPlanner(object):
         with self.robot:
             # contacts is a 2d array, where contacts[i,0-2] are the positions of contact i and contacts[i,3-5] is the direction
             try:
-                contacts, finalconfig, mindist, volume = self.gmodel.testGrasp(grasp=grasp, translate=True,
-                                                                               forceclosure=False)
+                contacts, finalconfig, mindist, volume = self.gmodel.testGrasp(grasp=grasp, translate=True, forceclosure=False)
 
                 obj_position = self.gmodel.target.GetTransform()[0:3, 3]
                 # for each contact
@@ -73,8 +72,13 @@ class GraspPlanner(object):
         #      densityfn: gaussian kernel density function taking poses of openrave quaternion type, returns probabilities
         #      samplerfn: gaussian kernel sampler function taking number of sample and weight, returns robot base poses and joint states
         #      bounds: 2x3 array, bounds of samples, [[min rotation, min x, min y],[max rotation, max x, max y]]
-
-        densityfn, samplerfn, bounds = self.irmodel.computeBaseDistribution(Tgrasp, logllthresh=1.8)
+        self.irmodel = openravepy.databases.inversereachability.InverseReachabilityModel(robot=self.robot)
+        print 'loading irmodel'
+        #if not self.irmodel.load():
+        self.irmodel.autogenerate()
+        self.irmodel.load()
+        densityfn,samplerfn,bounds = self.irmodel.computeBaseDistribution(Tgrasp)
+        
         if densityfn == None:
             print 'the specified grasp is not reachable!'
             return
@@ -115,6 +119,7 @@ class GraspPlanner(object):
         if not gmodel.load():
             gmodel.autogenerate()
 
+        self.gmodel = gmodel
         base_pose = None
         grasp_config = None
 
@@ -131,7 +136,7 @@ class GraspPlanner(object):
             grasp[gmodel.graspindices.get('performance')] = self.eval_grasp(grasp)
 
         # sort!
-        order = numpy.argsort(gmodel.grasps_ordered[:, gmodel.graspindices.get('performance')[0]])
+        order = numpy.argsort(grasps_ordered[:, self.gmodel.graspindices.get('performance')[0]])
         # maximum of sigma_min
         order = order[::-1]
 
