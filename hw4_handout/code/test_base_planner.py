@@ -38,7 +38,7 @@ if __name__ == "__main__":
                               [ 0, 0,  0, 1]])
     table.SetTransform(table_pose)
 
-    resolution = [0.1, 0.1, numpy.pi/4.]
+    resolution = [0.1, 0.1, numpy.pi/16.]
     herb_base = SimpleRobot(env, robot)
     base_env = SimpleEnvironment(herb_base, resolution)
 
@@ -57,11 +57,17 @@ if __name__ == "__main__":
     goal_config = base_env.discrete_env.NodeIdToConfiguration(gid)
     herb_base.SetCurrentConfiguration(goal_config)
 
+    print "start_config: %r\n goal_config: %r" % (start_config, goal_config)
+
     tgoal = robot.GetTransform()
     hgoal = openravepy.misc.DrawAxes(env, tgoal)
     hgoal.SetShow(True)
 
     herb_base.SetCurrentConfiguration(start_config)
+
+    #start_config=[-1.25, 0.8199999999999998, -0.7853981633974483]
+
+    #goal_config=[-0.22147236001777632, -0.16739882848882909, -0.9206489769452564]
 
     planner = AStarPlanner(base_env, visualize=False)
     plan = planner.Plan(start_config, goal_config)

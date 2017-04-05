@@ -98,7 +98,7 @@ class SimpleEnvironment(object):
 
         left_wheel = 1
         right_wheel = 1
-        duration_turn = numpy.pi/2 #I think this makes 90 degree turns
+        duration_turn = numpy.pi/16. #I think this makes 90 degree turns
         duration_move = .4 #not sure how far this moves
 
         forward = Control(left_wheel, right_wheel, duration_move)
@@ -131,7 +131,7 @@ class SimpleEnvironment(object):
         transform[0, 3] = conf[0]
         transform[1, 3] = conf[1]
         self.robot.SetTransform(transform);
-
+        #return True 
         for body in self.robot.GetEnv().GetBodies():
             if (body.GetName() != self.robot.GetName() and self.robot.GetEnv().CheckCollision(body, self.robot)):
                 return False

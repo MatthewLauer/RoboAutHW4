@@ -74,8 +74,8 @@ class GraspPlanner(object):
         #      bounds: 2x3 array, bounds of samples, [[min rotation, min x, min y],[max rotation, max x, max y]]
         self.irmodel = openravepy.databases.inversereachability.InverseReachabilityModel(robot=self.robot)
         print 'loading irmodel'
-        #if not self.irmodel.load():
-        self.irmodel.autogenerate()
+        if not self.irmodel.load():
+            self.irmodel.autogenerate()
         self.irmodel.load()
         densityfn,samplerfn,bounds = self.irmodel.computeBaseDistribution(Tgrasp)
         
@@ -165,7 +165,14 @@ class GraspPlanner(object):
             self.Tgrasp = Tgrasp
         # goals is a list of : (Tgrasp,pose,values)
         goal_idx = 0
-        base_pose = goals[goal_idx][1]  # Don't care which, just need one that works
+        #import IPython
+        #IPython.embed()
+        base_pose = [0,0,0]
+        base_pose[0] = goals[goal_idx][1][0]
+        base_pose[1] = goals[goal_idx][1][1] # Don't care which, just need one that works
+
+        base_pose[2] = math.atan2(goals[0][3][1][0],goals[0][3][1][1])
+        
         grasp_config = goals[goal_idx][2]
         T_pose = goals[goal_idx][3]
 
@@ -190,23 +197,40 @@ class GraspPlanner(object):
     def PlanToGrasp(self, obj):
 
         # Next select a pose for the base and an associated ik for the arm
-        base_pose, grasp_config = self.GetBasePoseForObjectGrasp(obj)
 
+        base_pose, grasp_config = self.GetBasePoseForObjectGrasp(obj)
         if base_pose is None or grasp_config is None:
             print 'Failed to find solution'
             exit()
 
         # Now plan to the base pose
-        start_pose = numpy.array(self.base_planner.planning_env.herb.GetCurrentConfiguration())
+        start_pose = numpy.ndarray.tolist(self.base_planner.planning_env.herb.GetCurrentConfiguration())
+        start_config = numpy.array(self.arm_planner.planning_env.robot.GetActiveDOFValues())
+
+
+        temp_config = grasp_config.copy()
+        temp_config[0] = 3
+        temp_config[1] = -1.9
+        arm_plan = self.arm_planner.Plan(start_config, temp_config)
+        import IPython 
+        IPython.embed()
+        arm_traj = self.arm_planner.planning_env.herb.ConvertPlanToTrajectory(arm_plan)
+
+        print 'Executing arm raise'
+        self.arm_planner.planning_env.herb.ExecuteTrajectory(arm_traj)
+        print "start_pose: %r\n goal_config: %r" % (start_pose, base_pose)
+
         base_plan = self.base_planner.Plan(start_pose, base_pose)
         base_traj = self.base_planner.planning_env.herb.ConvertPlanToTrajectory(base_plan)
 
         print 'Executing base trajectory'
         self.base_planner.planning_env.herb.ExecuteTrajectory(base_traj)
-
+        IPython.embed()
+        
         # Now plan the arm to the grasp configuration
-        start_config = numpy.array(self.arm_planner.planning_env.herb.GetCurrentConfiguration())
-        arm_plan = self.arm_planner.Plan(start_config, grasp_config)
+        arm_plan = self.arm_planner.Plan(temp_config, grasp_config)
+        #import IPython 
+        #IPython.embed()
         arm_traj = self.arm_planner.planning_env.herb.ConvertPlanToTrajectory(arm_plan)
 
         print 'Executing arm trajectory'

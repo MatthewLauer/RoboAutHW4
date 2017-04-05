@@ -4,6 +4,7 @@ class HerbEnvironment(object):
     
     def __init__(self, herb):
         self.robot = herb.robot
+        self.herb = herb
 
         # add a table and move the robot into place
         #table = self.robot.GetEnv().ReadKinBodyXMLFile('models/objects/table.kinbody.xml')

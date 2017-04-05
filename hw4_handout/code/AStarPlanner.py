@@ -1,6 +1,18 @@
 import time
 import bisect
 import numpy as np
+
+class Control(object):
+    def __init__(self, omega_left, omega_right, duration):
+        self.ul = omega_left
+        self.ur = omega_right
+        self.dt = duration
+
+class Action(object):
+    def __init__(self, control, footprint):
+        self.control = control
+        self.footprint = footprint
+
 class AStarPlanner(object):
     
     def __init__(self, planning_env, visualize):
@@ -20,12 +32,14 @@ class AStarPlanner(object):
         self.open.addNode(start_node)
         #if self.visualize and hasattr(self.planning_env, 'InitializePlot'):
         self.planning_env.InitializePlot(goal_config)
-        
+        import IPython
+        #IPython.embed()
         goal_id = self.planning_env.discrete_env.ConfigurationToNodeId(goal_config)
         self.open.setGoal(goal_id)
         suc_node = start_node
         self.close.addNode(start_node.id)
         count = 0
+        #print goal_config
 
         while (self.open.isEmpty() == False):
             #time.sleep(.5)
@@ -63,12 +77,27 @@ class AStarPlanner(object):
         transform = self.planning_env.robot.GetTransform() #hacky
         transform[0, 3] = start_config[0]
         transform[1, 3] = start_config[1]
-        self.planning_env.robot.SetTransform(transform);
-
-        import IPython
-        IPython.embed()
+        self.planning_env.robot.SetTransform(transform)
+        #plan.append(Action(None, self.LastMile(plan[-1].footprint[-1], goal_config)))
+        
+        #IPython.embed()
         return plan
 
+
+    def LastMile(self, lastconf, goalconf):
+        footprint = [np.array(lastconf)]
+        config = np.array(lastconf).copy()
+        for i in range(10):
+            xdot = (lastconf[0] - goalconf[0])/10
+            ydot = (lastconf[1] - goalconf[1])/10
+            tdot = (lastconf[2] - goalconf[2])/10
+            config = config + (1.0/10.0)*np.array([xdot, ydot, tdot])
+
+            footprint_config = config.copy()
+            footprint_config[:2] -= lastconf[:2]
+            footprint.append(footprint_config)
+        goalconf -= lastconf
+        footprint.append(goalconf)
 
 class Node:
     def __init__(self, cost, parent, depth, id, action):

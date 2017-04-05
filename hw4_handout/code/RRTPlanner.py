@@ -18,8 +18,8 @@ class RRTPlanner(object):
         tree = RRTTree(self.planning_env, start_config)
         plan = []
 
-        if self.visualize and hasattr(self.planning_env, 'InitializePlot'):
-            self.planning_env.InitializePlot(goal_config)
+        #if self.visualize and hasattr(self.planning_env, 'InitializePlot'):
+        #    self.planning_env.InitializePlot(goal_config)
         # TODO: Here you will implement the rrt planner
         #  The return path should be an array
         #  of dimension k x n where k is the number of waypoints
@@ -31,8 +31,8 @@ class RRTPlanner(object):
         currConfig = start_config;
         currID = tree.GetRootId();
 
-        print "startConfig = [%.2f, %.2f]" %(start_config[0], start_config[1])
-        print "goalConfig = [%.2f, %.2f]" %(goal_config[0], goal_config[1])
+        #print "startConfig = [%.2f, %.2f]" %(start_config[0], start_config[1])
+        #print "goalConfig = [%.2f, %.2f]" %(goal_config[0], goal_config[1])
         #while (self.planning_env.Extend(currConfig, goal_config) == None):
 
         while (self.planning_env.ComputeDistance(currConfig,goal_config) > epsilon):
